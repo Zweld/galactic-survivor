@@ -77,3 +77,71 @@ canvas {
     box-shadow: 0 0 20px #00f0ff;
     text-shadow: none;
 }
+
+/* HUD Header & Stage Bar */
+#hud {
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    z-index: 5;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+}
+.hud-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.hud-card {
+    background: rgba(4, 10, 20, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+    padding: 8px 16px;
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    color: #00f0ff;
+}
+
+/* Progress Bar */
+.stage-progress-container {
+    width: 100%;
+    height: 12px;
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid #00f0ff;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+}
+.stage-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00f0ff, #ff0055);
+    box-shadow: 0 0 10px #00f0ff;
+    transition: width 0.2s linear;
+}
+
+/* Modal Popup */
+#modal {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+}
+.modal-content {
+    background: rgba(8, 14, 28, 0.95);
+    border: 2px solid #ff0055;
+    box-shadow: 0 0 30px rgba(ff, 0, 85, 0.4);
+    padding: 30px;
+    max-width: 450px;
+    text-align: center;
+    border-radius: 6px;
+}
