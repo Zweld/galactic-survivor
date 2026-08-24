@@ -153,3 +153,40 @@
                             </div>
                             <button onclick="closeSettings()" style="margin-top: 20px;">CLOSE</button>
                             </div>
+
+                            <!-- GAME OVER -->
+                             <div id="death-panel" class="panel" style="display: none;">
+                                <h1 id="death-title" style="color: #ff0055; text-shadow: 0 0 20px #ff0055;">SHIP DESTROYED</h1>
+                                <p id="death-score" style="font-size: 22px;">SCORE: 0</p>
+                                <p id="death-time" style="font-size: 18px; margin-bottom: 15px;">TIME: 0:00</p>
+                                <p id="revive-count-text" style="font-size: 20px; margin-bottom: 20px;">REVIVALS LEFT: x0</p>
+                                <div>
+                                    <button id="btn-revive" onclick="useRevive()" style="border-color: #00ff88; color: #00ff88;">REVIVE</button>
+                                    <button onclick="giveUp()">QUIT</button>
+                                    </div>
+                                </div>
+
+                                <!-- VICTORY -->
+                                 <div id="victory-panel" class="panel" style="display: none;">
+                                    <h1 style="color: #00ff88; text-shadow: 0 0 20px #00ff88;">VICTORY!</h1>
+                                    <h2>You conquered the galaxy!</h2>
+                                    <p id="victory-score" style="font-size: 24px; color: #ffff00;">FINAL SCORE: 0</p>
+                                    <p id="victory-time" style="font-size: 20px;">TIME: 0:00</p>
+                                    <p id="victory-kills" style="font-size: 20px; margin-bottom: 25px;">TOTAL KILLS: 0</p>
+                                    <button onclick="startGame()">PLAY AGAIN</button>
+                                    <button onclick="giveUp()">MAIN MENU</button>
+                                </div>
+
+                                <!-- CONFIRMATION MODAL -->
+                                 <div id="modal" class="modal-overlay" style="display: none;">
+                                    <div class="modal-box">
+                                       <p id="modal-text">ARE YOU SURE?</p>
+                                       <button onclick="confirmModal(true)" style="border-color: #00ff88; color: #00ff88;">YES</button>
+                                       <button onclick="confirmModal(false)" style="border-color: #ff0055; color: #ff0055;">NO</button>
+                                    </div>
+                                </div>
+
+
+                                <script src="game.js"></script>
+                                </body>
+                                </html>
