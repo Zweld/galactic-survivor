@@ -103,3 +103,53 @@
         <div id="hud-time" class="hud-text">TIME: 0:00</div>
         <div id="hud-revives" class="hud-text">REVIVES: x0</div>
         </div>
+
+        <!-- MAIN MENU -->
+         <div id="menu-panel" class="panel">
+            <h1>GALACTIC SURVIVOR</h1>
+            <p style="color:#888; margin-bottom:20px;">SURVIVE. ADAPT. CONQUER.</p>
+            <button onclick="startGame()">START GAME</button>
+            <button onclick="openSettings()">SETTINGS</button>
+            <div class="controls-info">
+                <span>WASD / ARROWS</span> Move &nbsp;|&nbsp; <span>SPACE</span> Shoot &nbsp;|&nbsp; <span>Q/E/R</span> Abilities<br>
+                <span>ESC</span> Pause &nbsp;|&nbsp; Collect skills to power up
+                </div>
+            </div>
+
+            <!-- PAUSE -->
+             <div id="pause-panel" class="panel" style="display: none;">
+                <h2>PAUSED</h2>
+                <button onclick="resumeGame()">RESUME</button>
+                <button onclick="openSettings()">SETTINGS</button>
+                <button onclick="restartGame()">RESTART</button>
+                <button onclick="giveUp()">QUIT TO MENU</button>
+             </div>
+
+             <!-- SETTINGS -->
+              <div id="settings-panel" class="panel" style="display: none;">
+                <h2>SETTINGS</h2>
+                <div class="setting-row">
+                    <span>STAR EFFECT</span>
+                    <button id="btn-stars" onclick="toggleStars()">ON</button>
+                    </div>
+                    <div class="setting-row">
+                    <span>MUSIC</span>
+                    <button id="btn-music" onclick="toggleMusic()">ON</button>
+                    </div>
+                    <div class="setting-row">
+                        <span>VOLUME</span>
+                        <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.3" oninput="changeVolume(this.value)">
+                        </div>
+                        <div class="setting-row">
+                            <span>GOD MODE</span>
+                            <button id="btn-god" onclick="toggleGodMode()">OFF</button>
+                            </div>
+                            <div class="setting-row">
+                                <span>DEV MODE</span>
+                                <button id="btn-dev" onclick="toggleDevMode()">OFF</button>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 12px; color: #666; text-align: center;">
+                                Dev: N=NextArea M=NextStage B=Boss H=Heal K=KillAll
+                            </div>
+                            <button onclick="closeSettings()" style="margin-top: 20px;">CLOSE</button>
+                            </div>
