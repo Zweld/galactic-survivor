@@ -169,3 +169,45 @@ if (gameState === 'PLAYING') {
             twinkle: Math.random() * Math.PI * 2
         });
     }
+
+    // --- AREA DATA ---
+    const AREA_DATA = {
+        1: { name: 'NEBULA SECTOR', color: '#030712', bossColor: '#ff0055', accent: '#00f0ff', enemyColors: ['#ffa500','#d900ff','#7900ff','#00ff88'] },
+        2: { name: 'VOID DEPTHS', color: '#0f051d', bossColor: '#9900ff', accent: '#aa00ff', enemyColors: ['#ff6600','#cc00ff','#5500ff','#00ccff'] },
+        3: { name: 'INFERNO ZONE', color: '#1a0505', bossColor: '#ff3300', accent: '#ff4500', enemyColors: ['#ff4400','#ff0088','#aa00ff','#ffcc00'] },
+        4: { name: 'CRYSTAL FIELDS', color: '#05181a', bossColor: '#00ffcc', accent: '#00ffaa', enemyColors: ['#00ffaa','#00aaff','#aa00ff','#ff00aa'] },
+        5: { name: 'ABYSSAL CORE', color: '#1a020d', bossColor: '#ff00aa', accent: '#ff0055', enemyColors: ['#ff0055','#ff00ff','#aa0055','#ffaa00'] },
+        6: { name: 'QUANTUM RIFT', color: '#0a0a1a', bossColor: '#aa00ff', accent: '#8800ff', enemyColors: ['#8800ff','#00ffaa','#ff0088','#ffff00'] },
+        7: { name: 'OMEGA TERMINUS', color: '#050505', bossColor: '#ff0000', accent: '#ff4444', enemyColors: ['#ff0000','#ff4444','#ff8888','#ffffff'] }
+
+    };
+
+    // --- SKILL CONFIG ---
+    const SKILL_DATA = {
+        'multishot':     { area: 1, duration: 8, weight: 3.0, icon: '\uD83D\uDE80', name: 'Multishot' },
+        'shield':        { area: 1, duration: 10, weight: 1.5, icon: '\uD83D\uDEE1\uFE0F', name: 'Shield' },
+        'health':        { area: 1, duration: 0, weight: 2.0, icon: '\u2764\uFE0F', name: 'Health' },
+        'ghost':         { area: 1, duration: 5, weight: 1.0, icon: '\uD83D\uDC7B', name: 'Ghost' },
+        'bomb':          { area: 1, duration: 12, weight: 1.5, icon: '\uD83D\uDCA3', name: 'Bomb Shot' },
+        'hlaser':        { area: 1, duration: 10, weight: 1.0, icon: '\u26A1', name: 'Chain Laser' },
+        'laserbeam':     { area: 1, duration: 10, weight: 1.5, icon: '\uD83D\uDD2B', name: 'Laser Beam' },
+        'firechamber':   { area: 1, duration: 8, weight: 1.0, icon: '\uD83D\uDD25', name: 'Fire Ring' },
+        'freeze':        { area: 1, duration: 4, weight: 1.0, icon: '\u2744\uFE0F', name: 'Time Freeze' },
+        'plasmabarrier': { area: 1, duration: 8, weight: 1.0, icon: '\uD83D\uDD2E', name: 'Plasma Aura' },
+        'drone':         { area: 2, duration: 15, weight: 1.0, icon: '\uD83E\uDD16', name: 'Combat Drone' },
+        'rapidfire':     { area: 2, duration: 6, weight: 1.5, icon: '\uD83D\uDD25', name: 'Rapid Fire' },
+        'magnet':        { area: 2, duration: 10, weight: 1.0, icon: '\uD83E\uDDF2', name: 'Item Magnet' },
+        'reflect':       { area: 3, duration: 6, weight: 1.0, icon: '\uD83D\uDD01', name: 'Reflect Shield' },
+        'poison':        { area: 3, duration: 8, weight: 1.0, icon: '\u2620\uFE0F', name: 'Toxic Aura' },
+        'homing':        { area: 4, duration: 10, weight: 1.0, icon: '\uD83C\uDFAF', name: 'Homing' },
+        'berserk':       { area: 4, duration: 5, weight: 0.8, icon: '\uD83D\uDCA2', name: 'Berserk' },
+        'regen':         { area: 5, duration: 12, weight: 1.0, icon: '\uD83D\uDC9A', name: 'Auto Repair' },
+        'phoenix':       { area: 5, duration: 0, weight: 0.5, icon: '\uD83D\uDD25', name: 'Phoenix' },
+        'shockwave':     { area: 1, duration: 0, isAbility: 'Q', weight: 1.0, icon: '\uD83C\uDF00', name: 'Shockwave' },
+        'blackhole':     { area: 6, duration: 0, isAbility: 'Q', weight: 0.5, icon: '\u26AB', name: 'Black Hole' },
+        'lightning':     { area: 1, duration: 0, isAbility: 'E', weight: 1.0, icon: '\u26A1', name: 'Lightning' },
+        'missile':       { area: 4, duration: 0, isAbility: 'E', weight: 0.8, icon: '\uD83D\uDE80', name: 'Mega Missile' },
+        'nuke':          { area: 1, duration: 0, isAbility: 'R', weight: 0.6, icon: '\u2622\uFE0F', name: 'Nuke' },
+        'timefreeze':    { area: 5, duration: 0, isAbility: 'R', weight: 0.5, icon: '\u23F1\uFE0f', name: 'Chronostasis' },
+
+    };
