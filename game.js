@@ -144,7 +144,7 @@ if (gameState === 'PLAYING') {
         if (e.code === 'KeyN') devNextArea();
         if (e.code === 'KeyM') devNextStage();
         if (e.code === 'KeyB') devSpawnBoss();
-        if (e.code === 'KeyH') { player.hp = player.maxHp; addFloatingText (
+        if (e.code === 'KeyH') { player.hp = player.maxHp; addFloatingText(
             player.x, player.y, 'DEV: FULL HP', '#00ff88', 16); }
             if (e.code === 'KeyK') { enemies = []; addFloatingText(player.x,
                 player.y, 'DEV: KILL ALL', '#ff0055', 16); }
@@ -346,3 +346,207 @@ function spawnEnemy() {
         });
     }
 }
+
+// --- UPDATE ---
+let lastShootTime = 0;
+let enemySpawnTimer = 0;
+let skillSpawnTimer = 0;
+let regenTimer = 0;
+let lightningDebuffTimer = 0;
+let lightningDamageTimer = 0;
+let droneTimer = 0;
+
+function update(dt) {
+    if (gameState !== 'PLAYING') return;
+    gameTime += dt;
+    if (comboTimer > 0) comboTimer -= dt; else combo = 0;
+    if (screenShake > 0) screenShake -= dt * 15;
+    if (player.invincibleTimer > 0) player.invincibleTimer -= dt;
+
+    const isTimeFrozen = (player.activeSkills.freeze > 0 || lightningTargeting || player.activeSkills.timefreeze > 0);
+    const areaData = AREA_DATA[Math.min(currentArea, AREA_COUNT)];
+
+    // Player movement
+    if (!lightningTargeting) {
+        let spd = PLAYER_SPEED;
+        if (player.activeSkills.berserk) spd *= 1.5;
+        let isMoving = false;
+        if (keys['ArrowLeft'] || keys['KeyA']) { player.x -= spd; isMoving = true; }
+        if (keys['ArrowRight'] || keys['KeyD']) { player.x += spd; isMoving = true; }
+        if (keys['ArrowUp'] || keys['KeyW']) { player.y -= spd; isMoving = true; }
+        if (keys['ArrowDown'] || keys['KeyS']) { player.y += spd; isMoving = true; }
+
+        if (isMoving || Math.random() < 0.5) {
+            particles.push({
+                x: player.x + player.width / 2 + (Math.random() - 0.5) * 10,
+                y: player.y + player.height,
+                vx: (Math.random() - 0.5) * 2,
+                vy: Math.random() * 4 + 2,
+                color: areaData.accent,
+                size: Math.random() * 3 + 1,
+                life: 0.3
+            });
+        }
+        player.x = Math.max(10, Math.min(canvas.width - player.width - 10, player.x));
+        player.y = Math.max(10, Math.min(canvas.height - player.height - 10, player.y));
+    }
+
+    // Skill timers - SAFE : skip NaN values
+    for (let s in player.activeSkills) {
+        let val = player.activeSkills[s];
+        if (typeof val === 'number' && !isNaN(val)) {
+            player.activeSkills[s] = val - dt;
+            if (player.activeSkills[s] <= 0) delete player.activeSkills[s];
+        } else {
+            delete player.activeSkills[s];
+        }
+     } 
+
+     // Auto repair
+     if (player.activeSkills.regen) {
+        regenTimer += dt;
+        if (regenTimer >= 1.5) {
+            regenTimer = 0;
+            if (player.hp < player.maxHp) {
+                player.hp = Math.min(player.maxHp, player.hp + 1);
+                addFloatingText(player.x + 22, player.y - 10, '+1 HP', '#00ff88', 16);
+            }
+        }
+     }
+    
+
+    // Drone
+    if (player.activeSkills.drone) {
+        droneTimer += dt;
+        if (droneTimer >= 0.4) {
+            droneTimer = 0;
+            let target = enemies.find(e => !e.isBoss) || enemies[0];
+            if (target) {
+                let angle = Math.atan2((target.y + target.height/2) - (player.y + player.height/2),
+                                       (target.x + target.width/2) - (player.x + player.width/2));
+                bullets.push({
+                    x: player.x + player.width/2, y: player.y + player.height/2,
+                    width: 8, height: 8, speed: 12, damage: 2,
+                    vx: Math.cos(angle) * 12, vy: Math.sin(angle) * 12,
+                    isDrone: true, life: 2
+                });
+                playSFX('sound-drone', 0.1);
+            }
+        }
+    }
+
+    // Lightning debuff (works even when frozen)
+    if (lightningDebuffTimer > 0) {
+        lightningDebuffTimer -= dt;
+        lightningDamageTimer += dt;
+        if (lightningDamageTimer >= 0.5) {
+            enemies.forEach(e => {
+                e.hp -= 0.5 + (currentArea * 0.1);
+                createParticles(e.x + e.width/2, e.y + e.height/2, '#00ffff', 2);
+            });
+            lightningDamageTimer = 0;
+        }
+    }
+
+    // Fire Chamber (works even when frozen)
+    if (player.activeSkills.firechamber) {
+        enemies.forEach(e => {
+            let dist = Math.hypot(
+                (player.x + player.width/2) - (e.x + e.width/2),
+                (player.y + player.height/2) - (e.y + e.height/2)
+            );
+            if (dist < 170) {
+                e.hp -= 8 * dt;
+                if (Math.random() < 0.3) createParticles(e.x + e.width/2, e.y + e.height/2, '#ff4500', 2);
+            }
+
+        });
+    }
+
+    // Plasma barrier (works even when frozen)
+    if (player.activeSkills.plasmabarrier) {
+        enemies.forEach(e => {
+            let dist = Math.hypot((player.x + player.width/2) - (e.x + e.width/2), (player.y + player.height/2) - (e.y + e.height/2));
+            if (dist < 120) {
+                e.hp -= 12 * dt;
+                if (Math.random() < 0.3) createParticles(e.x + e.width/2, e.y + e.height/2, '#d900ff', 2);
+            }
+        });
+    }
+
+    // Poison aura (works even when frozen)
+    if (player.activeSkills.poison) {
+        enemies.forEach(e => {
+            let dist = Math.hypot((player.x + player.width/2) - (e.x + e.width/2), (player.y + player.height/2) - (e.y + e.height/2));
+            if (dist < 140) {
+                e.hp -= 5 * dt;
+                e.poisoned = 2;
+                if (Math.random() < 0.2) createParticles(e.x + e.width/2, e.y + e.height/2, '#00ff00', 1);
+            }
+        });
+    }
+
+    let damageMult = player.activeSkills.berserk ? 2.0 : 1.0;
+
+    // Shooting
+    const now = Date.now();
+    let fireRate = player.activeSkills.rapidfire ? 80 : (player.activeSkills.berserk ? 100 : 160);
+    if (keys['Space'] && !lightningTargeting) {
+        if (player.activeSkills.laserbeam) {
+            let beamX = player.x + player.width/2;
+            let beamY = 0;
+            let beamW = 14;
+            let beamH = player.y -20;
+            visualEffects.push({ type: 'laserbeam', x: beamX, y: beamY, width: beamW, height: beamH, life: 0.05 });
+            if (now - lastShootTime > 300) {
+                enemies.forEach(e => {
+                    let ex = e.x + e.width/2;
+                    let ey = e.y + e.height/2;
+                    if (ex > beamX - beamW/2 - e.width/2 && ex < beamX + beamW/2 + e.width/2 && ey > beamY && ey < beamY + beamH) {
+                        e.hp -= 2 * damageMult;
+                        createParticles(ex, ey, '#00f0ff', 4);
+                    }
+                });
+                playSFX('sound-laserbeam', 0.05);
+                lastShootTime = now;
+            }
+        } else if (now - lastShootTime > fireRate) {
+            if (player.activeSkills.homing) {
+                bullets.push({ x: player.x + player.width/2 - 4, y: player.y, width: 10, height: 18, speed: 9, damage: 2 * damageMult, isHoming: true, life: 3 });
+            } else if (player.activeSkills.multishot) {
+                for (let i = -2; i <= 2; i++) {
+                    bullets.push({ x: player.x + player.width/2 - 3, y: player.y, width: 5, height: 14, speed: 11, damage: 1 * damageMult, vx: i * 2.2 }); 
+                }
+            } else if (player.activeSkills.bomb) {
+                bullets.push({ x: player.x + player.width/2 - 8, y: player.y, width: 16, height: 16, speed: 7, damage: 6 * damageMult, isBomb: true });
+                playSFX('sound-bomb', 0.2);
+            } else {
+                bullets.push({ x: player.x + player.width/2 - 3, y: player.y, width: 6, height: 16, speed: 11, damage: 1 * damageMult, vx: 0 });
+            }
+            lastShootTime = now;
+        }
+    }
+
+    // Bullets
+    if (!lightningTargeting) {
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            let b = bullets[i];
+            if (b.isHoming) {
+                b.life -= dt;
+                if (b.life <= 0) { bullets.splice(i, 1); continue; }
+                let target = enemies.find(e => !e.isBoss) || enemies[0];
+                if (target) {
+                    let angle = Math.atan2((target.y + target.height/2) - b.y, (target.x + target.width/2) - b.x);
+                    b.vx = (b.vx || 0) * 0.9 + Math.cos(angle) * b.speed * 0.1;
+                    b.vy = (b.vy || -b.speed) * 0.9 + Math.sin(angle) * b.speed * 0.1;
+                    b.x += b.vx; b.y += b.vy;
+                } else { b.y -= b.speed; }
+            } else if (b.vx !== undefined && b.vy !== undefined) {
+                b.x += b.vx; b.y += b.vy;
+            } else {
+                b.y -= b.speed;
+                if (b.vx) b.x += b.vx;
+            }
+            if (b.y < -30 || b.y > canvas.height + 30 || b.x < -30 || b.x > canvas.width + 30) bullets.splice(i, 1);
+        }
+    }
