@@ -211,3 +211,138 @@ if (gameState === 'PLAYING') {
         'timefreeze':    { area: 5, duration: 0, isAbility: 'R', weight: 0.5, icon: '\u23F1\uFE0f', name: 'Chronostasis' },
 
     };
+    function getAvailableSkills() {
+        let pool = [];
+        for (let key in SKILL_DATA) {
+            let sk = SKILL_DATA[key];
+            if (sk.area <= currentArea) {
+            if (sk.isAbility === 'Q' && player.activeAbilities.Q) continue;
+            if (sk.isAbility === 'E' && player.activeAbilities.E) continue;
+            if (sk.isAbility === 'R' && player.activeAbilities.R) continue;
+            if (key === 'health' && player.hp >= player.maxHp) continue;
+            let w = Math.round(sk.weight * 10 * (1 + currentArea * 0.15));
+            for (let i = 0; i < w; i++) pool.push({ key: key, icon: sk.icon, name: sk.name, isAbility: sk.isAbility, duration: sk.duration });
+        }
+    }
+    return pool;
+}
+
+function spawnRandomSkill() {
+    const pool = getAvailableSkills();
+    if (pool.length === 0) return;
+    let selected = pool[Math.floor(Math.random() * pool.length)];
+    skillPickups.push({
+        x: Math.random() * (canvas.width - 50) + 15,
+        y: -40,
+        key: selected.key,
+        icon: selected.icon,
+        width: 36, height: 36,
+        speed: 1.6 + (currentArea * 0.15)
+    });
+}
+
+function pauseGame() {
+    gameState = 'PAUSED';
+    document.getElementById('pause-panel').style.display = 'flex';
+}
+function resumeGame() {
+    document.getElementById('pause-panel').style.display = 'none';
+    document.getElementById('settings-panel').style.display = 'none';
+    gameState = 'PLAYING';
+    if (musicEnabled && !currentMusic) playMusic(currentArea);
+    lastTime = performance.now();
+}
+function restartGame() {
+    document.getElementById('pause-panel').style.display = 'none';
+    startGame();
+}
+function openSettings() {
+    document.getElementById('pause-panel').style.display = 'none';
+    document.getElementById('menu-panel').style.display = 'none';
+    document.getElementById('settings-panel').style.display = 'flex';
+}
+function closeSettings() {
+    document.getElementById('settings-panel').style.display = 'none';
+    if (gameState === 'PAUSED') document.getElementById('pause-panel').style.display = 'flex';
+    else if (gameState === 'MENU') document.getElementById('menu-panel').style.display = 'flex';
+}
+
+function startGame() {
+    document.getElementById('menu-panel').style.display = 'none';
+    document.getElementById('death-panel').style.display = 'none';
+    document.getElementById('pause-panel').style.display = 'none';
+    document.getElementById('settings-panel').style.display = 'none';
+    document.getElementById('victory-panel').style.display = 'none';
+
+
+currentArea = 1; currentStage = 1; enemiesKilledInStage = 0;
+score = 0; combo = 0; comboTimer = 0; gameTime = 0; totalKills = 0; revives = 0; screenShake = 0;
+player.hp = 5; player.maxHp = 5;
+player.x = canvas.width / 2; player.y = canvas.height - 120;
+player.activeSkills = {}; player.activeAbilities = { Q: null, E: null, R: null};
+player.invincibleTimer = 0;
+lightningDebuffTimer = 0; lightningDamageTimer = 0; lightningTargeting = false;
+
+enemies = []; bullets = []; enemyBullets = []; skillPickups = [];
+particles = []; visualEffects = []; floatingTexts = []; activePortal = null;
+bossAttacks = [];
+
+playMusic(currentArea);
+gameState = 'PLAYING';
+if (animationFrameId) cancelAnimationFrame(animationFrameId);
+lastTime = performance.now();
+animationFrameId = requestAnimationFrame(gameLoop);
+}
+
+function getEnemyStats(area, type) {
+    const baseHp = [1, 2, 3, 5];
+    const baseSpeed = [2.4, 1.8, 1.3, 0.9];
+    const hpMult = 1 + (area - 1) * 0.35;
+    const spdMult = 1 + (area - 1) * 0.08;
+    return { hp: Math.ceil(baseHp[type - 1] * hpMult), speed: baseSpeed[type - 1] * spdMult };
+}
+
+function spawnEnemy() {
+    const isBossStage = (currentStage % 5 === 0);
+    if (isBossStage) {
+        if (enemies.filter(e => e.isBoss).length === 0 && !activePortal) {
+            const bossHp = 60 + (currentArea * 35) + (currentStage * 10);
+            enemies.push({
+                x: canvas.width / 2 - 70, y: 50,
+                width: 140, height: 120,
+                hp: bossHp, maxHp: bossHp,
+                speedX: 2.2 + (currentArea * 0.4),
+                isBoss: true, shootTimer: 0, patternTimer: 0,
+                minionSpawnTimer: 0, specialTimer: 0,
+                imgKey: 'boss-area' + Math.min(currentArea, AREA_COUNT)
+            });
+            playSFX('sound-boss', 0.5);
+            addFloatingText(canvas.width / 2, 30, 'WARNING: ' + AREA_DATA[currentArea].name + ' BOSS', '#ff0055', 28);
+        }
+        return;
+    }
+    if (enemies.length < 40) {
+        let type;
+        if (currentArea <= 3) {
+            let availableTypes = [];
+            for (let t = 1; t <= 4; t++) {
+                let imgKey = 'enemy' + t + '-area' + Math.min(currentArea, AREA_COUNT);
+                let img = images[imgKey];
+                if (img && img.complete && img.naturalWidth !== 0) availableTypes.push(t);
+            }
+            if (availableTypes.length === 0) return;
+            type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+        } else {
+            type = Math.floor(Math.random() * 4) + 1;
+        }
+        const stats = getEnemyStats(currentArea, type);
+        enemies.push({
+            x: Math.random() * (canvas.width - 50), y: -55,
+            width: 34 + type * 3, height: 34 + type * 3,
+            hp: stats.hp, maxHp: stats.hp, speed: stats.speed,
+            type: type, isBoss: false, shootTimer: Math.random() * 2,
+            imgKey: 'enemy' + type + '-area' + Math.min(currentArea, AREA_COUNT),
+            poisoned: 0
+        });
+    }
+}
