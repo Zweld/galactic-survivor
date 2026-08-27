@@ -1130,3 +1130,178 @@ function createParticles(x, y, color, count) {
         particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) *10, color, size: Math.random() * 4 + 1.5, life: Math.random() * 0.4 + 0.2 });
     }   
 }
+
+// --- SPRITE DRAWING (No PNG assets needed) ---
+function drawPlayerShip(x, y, w, h, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    let cx = x + w/2, cy = y + h/2;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.moveTo(cx, y);
+    ctx.lineTo(x + w, y + h * 0.75);
+    ctx.lineTo(cx, y + h * 0.55);
+    ctx.lineTo(x, y + h * 0.75);
+    ctx.closePath();
+    ctx.fill()
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(cx, y + h * 0.2);
+    ctx.lineTo(cx + w * 0.12, y + h * 0.45);
+    ctx.lineTo(cx, y + h * 0.5);
+    ctx.lineTo(cx - w * 0.12, y + h * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.15, y + h * 0.6);
+    ctx.lineTo(x, y + h * 0.85);
+    ctx.moveTo(x + w * 0.85, y + h * 0.6);
+    ctx.lineTo(x + w, y + h * 0.85);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawEnemyShip(x, y, w, h, type, color) {
+    ctx.save();
+    let cx = x + w/2, cy = y + h/2;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    if (type === 1) {
+        ctx.beginPath();
+        ctx.moveTo(cx, y + h);
+        ctx.lineTo(x + w, cy);
+        ctx.lineTo(cx, y);
+        ctx.lineTo(x, cy);
+        ctx.closePath();
+        ctx.fill();
+    } else if (type === 2) {
+        ctx.beginPath();
+        ctx.moveTo(cx, y + h);
+        ctx.lineTo(x + w, y + h * 0.7);
+        ctx.lineTo(x + w * 0.8, y);
+        ctx.lineTo(x + w * 0.2, y);
+        ctx.lineTo(x, y + h * 0.7);
+        ctx.closePath();
+        ctx.fill();
+    } else if (type === 3) {
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.5, y);
+        ctx.lineTo(x + w, y + h * 0.3);
+        ctx.lineTo(x + w * 0.7, y + h);
+        ctx.lineTo(x + w * 0.3, y + h);
+        ctx.lineTo(x, y + h * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, w * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, w * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        for (let i = 0; i < 4; i++) {
+            let a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(a) * w * 0.25, cy + Math.sin(a) * h * 0.25);
+            ctx.lineTo(cx + Math.cos(a) * w * 0.5, cy + Math.sin(a) * h * 0.5);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = color;
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+function drawBossShip(x, y, w, h, color) {
+    ctx.save();
+    let cx = x + w/2, cy = y + h/2;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 25;
+    ctx.beginPath();
+    ctx.moveTo(cx, y + h * 0.05);
+    ctx.lineTo(x + w * 0.9, y + h * 0.25);
+    ctx.lineTo(x + w, y + h * 0.55);
+    ctx.lineTo(x + w * 0.75, y + h);
+    ctx.lineTo(x + w * 0.25, y + h);
+    ctx.lineTo(x, y + h * 0.55);
+    ctx.lineTo(x + w * 0.1, y + h * 0.25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(cx, cy + h * 0.05, w * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(cx, cy + h * 0.05, w * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 10;
+    ctx.fillRect(x + w * 0.05, y + h * 0.5, w * 0.1, h * 0.4);
+    ctx.fillRect(x + w * 0.85, y + h * 0.5, w * 0.1, h * 0.4);
+    ctx.restore();
+}
+
+// --- RENDER ---
+function draw() {
+    ctx.save();
+    if (screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake * 3, (Math.random() - 0.5) * screenShake * 3);
+    }
+
+    const areaData = AREA_DATA[Math.min(currentArea, AREA_COUNT)];
+
+    // Background
+    const bgKey = 'bg-area' + Math.min(currentArea, AREA_COUNT);
+    if (images[bgKey] && images[bgKey].complete && images[bgKey].naturalWidth !== 0) {
+        ctx.drawImage(images[bgKey], 0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.fillStyle = areaData.color;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Stars
+    if (starsEnabled) {
+        stars.forEach(s => {
+            let alpha = 0.5 + Math.sin(s.twinkle + gameTime * 2) * 0.5;
+            ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+            if (!lightningTargeting) {
+                s.y += s.speed * (player.activeSkills.berserk ? 3 : 1);
+                if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
+            }
+            s.twinkle += 0.02;
+        });
+    }
+
+    // Portal
+    if (activePortal) {
+        ctx.save();
+        let pulse = 1 + Math.sin(gameTime * 4) * 0.15;
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(activePortal.x + 40, activePortal.y + 40, 35 * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
+        ctx.fill()
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillStyle = '#00f0ff';
+        ctx.textAlign = 'center';
+        ctx.fillText('PORTAL', activePortal.x + 40, activePortal.y + 44);
+        ctx.restore();
+    }
+}
