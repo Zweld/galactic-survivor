@@ -822,3 +822,311 @@ function update(dt) {
                 skillPickups.splice(i, 1);
                 }
         }
+
+        // Portal
+        if (activePortal && !lightningTargeting) {
+            if (player.x < activePortal.x + activePortal.width && player.x + player.width > activePortal.x &&
+                player.y < activePortal.y + activePortal.height && player.y + player.height > activePortal.y) {
+                    if (currentArea >= AREA_COUNT) {
+                        gameState = 'VICTORY';
+                        if (score > highScore) { highScore = score; localStorage.setItem('galactic_highscore', highScore.toString()); }
+                        document.getElementById('victory-score').innerText = 'FINAL SCORE: ' + score;
+                        document.getElementById('victory-time').innerText = 'TIME: ' + formatTime(gameTime);
+                        document.getElementById('victory-kills').innerText = 'TOTAL KILLS: ' + totalKills;
+                        document.getElementById('victory-panel').style.display = 'flex';
+                        stopMusic();
+                        return;
+                    }
+                    currentArea = Math.min(AREA_COUNT, currentArea + 1);
+                    currentStage += 1;
+                    enemiesKilledInStage = 0;
+                    activePortal = null;
+                    enemies = []; enemyBullets = [];
+                    playMusic(currentArea);
+                    addFloatingText(canvas.width/2, canvas.height/2, AREA_DATA[currentArea].name, '#00f0ff', 36);
+                    screenShake = 2;
+                }
+            }
+
+            // Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.life -= dt;
+                if (p.life <= 0) particles.splice(i, 1); 
+            }
+            // Visual effects
+            for (let i = visualEffects.length - 1; i >= 0; i--) {
+                visualEffects[i].life -= dt;
+                if (visualEffects[i].life <= 0) visualEffects.splice(i, 1);
+            }
+            // Floating texts
+            for (let i = floatingTexts.length -1; i >= 0; i--) {
+                let ft = floatingTexts[i];
+                ft.y -= ft.speed * dt; ft.life -= dt;
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+
+            updateHUD();
+}
+
+function addScore(pts, x, y) {
+    combo++;
+    comboTimer = 2.5;
+    let mult = 1 + Math.floor(combo / 10) * 0.5;
+    let finalPts = Math.floor(pts * mult);
+    score += finalPts;
+    addFloatingText(x, y, '+' + finalPts + (combo > 5 ? ' x' + combo : ''), '#ffff00', 14);
+}
+
+function addFloatingText(x, y, text, color, size) {
+    floatingTexts.push({ x, y, text, color, size, life: 1.2, speed: 40 });
+}
+
+function formatTime(t) {
+    let m = Math.floor(t / 60);
+    let s = Math.floor(t % 60);
+    return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function damagePlayer(amount) {
+    player.hp -=amount;
+    player.invincibleTimer = 1.5;
+    combo = 0;
+    screenShake = 5;
+    createParticles(player.x + player.width/2, player.y + player.height/2, '#ff0055', 30);
+    if (player.hp <= 0) {
+        if (player.activeSkills.phoenix) {
+            delete player.activeSkills.phoenix;
+            player.hp = player.maxHp;
+            player.activeSkills['ghost'] = 4;
+            addFloatingText(player.x + 22, player.y - 20, 'PHOENIX REBIRTH!', '#ff8800', 22);
+            playSFX('sound-powerup', 0.5);
+            screenShake = 4;
+            return;
+        }
+        gameState= 'GAMEOVER';
+        if (score > highScore) { highScore = score; localStorage.setItem('galactic_highscore', highScore.toString()); }
+        document.getElementById('death-title').innerText = 'SHIP DESTROYED';
+        document.getElementById('death-score').innerText = 'SCORE: ' + score;
+        document.getElementById('death-time').innerText = 'TIME: ' + formatTime(gameTime);
+        document.getElementById('revive-count-text').innerText = 'REVIVALS LEFT: x' + revives;
+        document.getElementById('btn-revive').style.display = revives > 0 ? 'inline-block' : 'none';
+        document.getElementById('death-panel').style.display = 'flex';
+        stopMusic();
+    }
+}
+
+function useRevive() {
+    if (revives > 0) {
+        revives--;
+        player.hp = player.maxHp;
+        player.activeSkills = {};
+        player.activeSkills['ghost'] = 3;
+        player.invincibleTimer = 2;
+        document.getElementById('death-panel').style.display = 'none';
+        gameState = 'PLAYING';
+        lastTime = performance.now();
+        if (musicEnabled) playMusic(currentArea);
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+}
+
+function giveUp() {
+    stopMusic();
+    document.getElementById('death-panel').style.display = 'none';
+    document.getElementById('pause-panel').style.display = 'none';
+    document.getElementById('settings-panel').style.display = 'none';
+    document.getElementById('victory-panel').style.display = 'none';
+    document.getElementById('menu-panel').style.display = 'flex';
+    gameState = 'MENU';
+}
+
+// --- ABILITIES ---
+function useShockwave() {
+    player.activeAbilities.Q = null;
+    playSFX('sound-shockwave', 0.4);
+    enemies.forEach(e => { e.y -= 150; if (e.y < 10) e.y = 10; e.hp = e.hp * 0.5; });
+    visualEffects.push({ type: 'shockwave', x: player.x + player.width/2, y: player.y + player.height/2, radius: 10, maxRadius: 400, life: 0.5 });
+    screenShake = 4;
+}
+function useBlackHole() {
+    player.activeAbilities.Q = null;
+    playSFX('sound-shockwave', 0.5);
+    let killed = 0;
+    enemies = enemies.filter(e => {
+        if (!e.isBoss) {
+            let dist = Math.hypot((player.x + player.width/2) - (e.x + e.width/2), (player.y + player.height/2) - (e.y + e.height/2));
+            if (dist < 350) { createParticles(e.x + e.width/2, e.y + e.height/2, '#aa00ff', 15); killed++; return false; }
+        }
+        return true;
+    });
+    if (killed > 0) addScore(killed * 50, player.x + player.width/2, player.y);
+    visualEffects.push({ type: 'blackhole', x: player.x + player.width/2, y: player.y + player.height/2, radius: 20, maxRadius: 350, life: 0.8 });
+    screenShake = 6;
+}
+function useLightningStrike(targetX, targetY) {
+    player.activeAbilities.E = null;
+    playSFX('sound-lightning', 0.4);
+    enemies.forEach(e => {
+        let dist = Math.hypot((e.x + e.width/2) - targetX, (e.y + e.height/2) - targetY);
+        if (dist < 160) e.hp -= 25 + currentArea * 5;
+    });
+    lightningDebuffTimer = 10.0;
+    lightningDamageTimer = 0;
+    visualEffects.push({ type: 'lightning', x: targetX, y: targetY, life: 0.4, branches: generateLightningBranches(targetX, targetY) });
+    createParticles(targetX, targetY, '#00ffff', 50);
+    createParticles(targetX, targetY, '#ffffff', 30);
+    screenShake = 3;
+}
+function useMissile() {
+    player.activeAbilities.E = null;
+    playSFX('sound-missile', 0.5);
+    enemies.forEach(e => {
+        let angle = Math.atan2(
+            (e.y + e.height/2) - (player.y + player.height/2),
+            (e.x + e.width/2) - (player.x + player.width/2)
+        );
+        bullets.push ({ x: player.x + player.width/2, y: player.y + player.height/2, width: 14, height: 14, speed: 10, damage: 15, vx: Math.cos(angle) * 10, vy: Math.sin (angle) * 10, isMissile: true, life: 4 });
+    });
+    screenShake = 2;
+}
+function useNukeAbility() {
+    if (!devMode) player.activeAbilities.R = null;
+    playSFX('sound-bomb', 0.6);
+    visualEffects.push({ type: 'shockwave', x: canvas.width/2, y: canvas.height/2, radius: 10, maxRadius: 1200, life: 0.8 });
+    let killed = 0;
+    enemies = enemies.filter(e => {
+        if (!e.isBoss) { createParticles(e.x + e.width/2, e.y + e.height/2, '#ff4500', 15); killed++; return false; }
+        return true;
+    });
+    if (killed > 0) addScore(killed * 30, canvas.width/2, canvas.height/2);
+    enemies.forEach(e => { if (e.isBoss) e.hp -= 20; });
+    screenShake =10;
+}
+function useTimeFreeze() {
+    player.activeAbilities.R = null;
+    playSFX('sound-freeze', 0.4);
+    player.activeSkills['freeze'] = 5;
+    visualEffects.push({ type: 'timefreeze', x: canvas.width/2, y: canvas.height/2, radius: 0, maxRadius: 800, life: 1.0 });
+}
+function devNextArea() {
+    if (currentArea >= AREA_COUNT) {
+        activePortal = { x: canvas.width/2 - 40, y: 150, width: 80, height: 80 };
+        addFloatingText(canvas.width/2, canvas.height/2, 'DEV: PORTAL OPENED', '#00ff88', 24);
+        return;
+    }
+    currentArea = Math.min(AREA_COUNT, currentArea + 1);
+    currentStage += 1;
+    enemiesKilledInStage = 0;
+    activePortal = null;
+    enemies = []; enemyBullets = [];
+    playMusic(currentArea);
+    addFloatingText(canvas.width/2, canvas.height/2, 'DEV: ' + AREA_DATA[currentArea].name, '#00ff88', 28);
+}
+function devNextStage() {
+    currentStage++;
+    enemiesKilledInStage = 0;
+    addFloatingText(canvas.width/2, canvas.height/2, 'DEV: STAGE ' + currentStage, '#00ff88', 24);
+}
+function devSpawnBoss() {
+    const bossHp = 60 + (currentArea * 35) + (currentStage * 10);
+    enemies.push ({
+        x: canvas.width /2 -70, y: 50,
+        width : 140, height: 120,
+        hp: bossHp, maxHp: bossHp,
+        speedX: 2.2 + (currentArea * 0.4),
+        isBoss: true, shootTimer: 0, patternTimer: 0,
+        minionSpawnTimer: 0,
+        imgKey: 'boss-area' + Math.min(currentArea, AREA_COUNT)
+    });
+    playSFX('sound-boss', 0.5);
+    addFloatingText(canvas.width/2, 30, 'DEV: BOSS SPAWNED', '#ff0055', 24);
+}
+function bossSpecialAbility(boss) {
+    let area = Math.min(currentArea, AREA_COUNT);
+    if (area === 1) {
+        // Dash charge toward player
+        let dx = (player.x + player.width/2) - (boss.x + boss.width/2);
+        let dy = ( player.y + player.height/2) - (boss.y + boss.height/2);
+        let angle = Math.atan2(dy, dx);
+        boss.x += Math.cos(angle) * 200;
+        boss.y += Math.sin(angle) * 100;
+        if (boss.y > canvas.height - 200) boss.y = canvas.height - 200;
+        if (boss .y < 20) boss.y = 20;
+        screenShake = 3;
+        addFloatingText(boss.x + boss.width/2, boss.y, 'CHARGE!', '#ff0055', 20);
+    } else if (area === 2) {
+        // 8-way burst
+        for (let i = 0; i < 8; i++) {
+            let angle = (i / 8) * Math.PI * 2;
+            enemyBullets.push({
+                x: boss.x + boss.width/2 -5, y: boss.y + boss.height/2,
+                width: 10, height: 10,
+                speed: 5,
+                vx: Math.cos(angle) * 5,
+                vy: Math.sin(angle) * 5
+            });
+        }
+        addFloatingText(boss.x + boss.width/2, boss.y, 'BURST!', '#aa00ff', 20);
+    } else if (area === 3) {
+        // Fire ring around boss
+        visualEffects.push({ type: 'boss_fire_ring', x: boss.x + boss.width/2, y: boss.y + boss.height/2, radius: 60, life: 2.0 });
+        addFloatingText(boss.x + boss.width/2, boss.y, 'INFERNO!', '#ff4500', 20);
+    } else if (area === 4) {
+        // Fireball meteor - warning then explosion
+        let targetX = player.x + player.width/2;
+        let targetY = player.y + player.height/2;
+        visualEffects.push({ type: 'fireball_warning', x: targetX, y: targetY, radius: 60, life: 1.5 });
+        bossAttacks.push({ type: 'fireball', x: targetX, y: targetY, timer: 1.5, damage: 2 });
+        addFloatingText(targetX, targetY - 40, 'WARNING!', '#ff0000', 22);
+    } else if (area === 5) {
+        // Homing missiles
+        for (let i = 0; i < 3; i++) {
+            enemyBullets.push({
+                x: boss.x + boss.width/2, y: boss.y +boss.height,
+                width: 12, height: 12, speed: 4,
+                vx: (Math.random() - 0.5) * 4,
+                vy: 4 + Math.random() * 2,
+                isHomingBoss: true, life: 5
+            });
+        }
+        addFloatingText(boss.x + boss.width/2, boss.y, 'MISSILES!', '#ff00aa', 20);
+    } else if (area === 6) {
+        // Teleport
+        boss.x = Math.random() * (canvas.width - boss.width - 40) + 20;
+        boss.y = Math.random() * 200 + 20;
+        visualEffects.push({ type: 'teleport', x: boss.x + boss.width/2, y: boss.y + boss.height/2, radius: 0, maxRadius: 100, life: 0.5 });
+        addFloatingText(boss.x + boss.width/2, boss.y, 'TELEPORT!', '#8800ff', 20);
+    } else if (area === 7) {
+        // Rage mode
+        boss.speedX *= 1.5;
+        visualEffects.push({ type: 'rage', x: boss.x + boss.width/2, y: boss.y + boss.height/2, radius: 50, life: 3.0 });
+        addFloatingText(boss.x + boss.width/2, boss.y, 'RAGE MODE!', '#ff0000', 24);
+    }
+}
+
+function generateLightningBranches(targetX, targetY) {
+    let points = [];
+    let startX = targetX + (Math.random() - 0.5) * 120;
+    let currX = startX, currY = 0;
+    points.push ({ x: currX, y: currY });
+    while ( currY < targetY) {
+        currY += Math.random() * 25 + 12;
+        currX += (Math.random() - 0.5) * 50;
+        points.push({ x: currX, y: currY });
+    }
+    points.push({ x: targetX, y: targetY });
+    return points;
+}
+function triggerExplosionEffects(x, y) {
+    playSFX('sound-bomb', 0.3);
+    visualEffects.push({ type: 'explosion_ring', x, y, radius: 5, maxRadius: 120, life: 0.4 });
+    createParticles(x, y, '#ff4500', 35);
+    createParticles(x, y, '#ffcc00', 25);
+    createParticles(x, y, '#ffffff', 15);
+}
+function createParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+        particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) *10, color, size: Math.random() * 4 + 1.5, life: Math.random() * 0.4 + 0.2 });
+    }   
+}
