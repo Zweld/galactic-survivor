@@ -550,3 +550,275 @@ function update(dt) {
             if (b.y < -30 || b.y > canvas.height + 30 || b.x < -30 || b.x > canvas.width + 30) bullets.splice(i, 1);
         }
     }
+
+    // Enemy bullets
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        let eb = enemyBullets[i];
+        if (!isTimeFrozen) {
+            if (eb.isHomingBoss) {
+            eb.life -= dt;
+            if (eb.life <= 0) { enemyBullets.splice(i, 1); continue; }
+            let angle = Math.atan2((player.y + player.height/2) - eb.y, (player.x + player.width/2) - eb.x);
+            eb.vx = (eb.vx || 0) * 0.95 + Math.cos(angle) * 2.5;
+            eb.vy = (eb.vy || 0) * 0.95 + Math.sin(angle) * 2.5;
+            eb.x += eb.vx; eb.y += eb.vy;
+        } else if (eb.vx !== undefined) { eb.x += eb.vx; eb.y += eb.vy; }
+        else eb.y += eb.speed;
+    }
+    if (eb.y > canvas.height + 30 || eb.x < -30 || eb.x > canvas.width + 30) { enemyBullets.splice(i, 1);
+        continue; }
+
+        let shielded = player.activeSkills.shield || player.activeSkills.reflect;
+        if (!godMode && !player.activeSkills.ghost && !shielded && !lightningTargeting && player.invincibleTimer <= 0) {
+            if (eb.x < player.x + player.width && eb.x + eb.width > player.x &&
+                eb.y < player.y + player.height && eb.y + eb.height > player.y) {
+                enemyBullets.splice(i, 1);
+                if (player.activeSkills.reflect) {
+                    let angle = Math.atan2(eb.vy || eb.speed, eb.vx || 0) + Math.PI;
+                    bullets.push({ x: eb.x, y: eb.y, width: 8, height: 8, speed: 8, damage: 3, vx: Math.cos(angle) * 8, vy: Math.sin(angle) * 8, isReflected: true });
+                    playSFX('sound-shield', 0.2);
+                } else damagePlayer(1);
+            }
+        }
+    }
+
+    // Boss attacks update
+    for (let i = bossAttacks.length - 1; i >= 0; i--) {
+        let atk = bossAttacks[i];
+        atk.timer -= dt;
+        if (atk.timer <= 0) {
+            if (atk.type === 'fireball') {
+                // Explosion damage
+                let distPlayer = Math.hypot((player.x + player.width/2) - atk.x, (player.y + player.height/2) - atk.y);
+                if (distPlayer < 70 && !godMode && !player.activeSkills.ghost && player.invincibleTimer <= 0) {
+                    damagePlayer(1);
+                }
+                enemies.forEach(e => {
+                    if (!e.isBoss) {
+                        let dist = Math.hypot((e.x + e.width/2) - atk.x, (e.y + e.height/2) - atk.y);
+                        if (dist < 70) e.hp -= 5;
+                    }
+                });
+                visualEffects.push({ type: 'fireball_explosion', x: atk.x, y: atk.y, radius: 10, maxRadius: 70, life: 0.5 });
+                createParticles(atk.x, atk.y, '#ff4500', 30);
+                createParticles(atk.x, atk.y, '#ffcc00', 20);
+                screenShake = 4;
+                playSFX('sound-bomb', 0.4);
+            }
+            bossAttacks.splice(i, 1);
+        }
+    }
+
+    // Boss fire ring damage (area 3)
+    visualEffects.forEach(ve => {
+        if (ve.type === 'boss_fire_ring' && ve.life > 0) {
+            let dist = Math.hypot((player.x + player.width/2) - ve.x, (player.y + player.height/2) - ve.y);
+            if (dist < ve.radius && !godMode && !player.activeSkills.ghost && player.invincibleTimer <= 0) {
+                if (Math.random() < 0.1) damagePlayer(1);
+            }
+        }
+    });
+
+    // Spawn enemies
+    if (!isTimeFrozen) {
+        enemySpawnTimer += dt;
+        let spawnRate = Math.max(0.12, 0.35 - (currentArea * 0.02) - (currentStage * 0.005));
+        if (enemySpawnTimer > spawnRate) { spawnEnemy(); enemySpawnTimer = 0; }
+    }
+
+    // Spawn skills
+    if (!lightningTargeting) {
+        skillSpawnTimer += dt;
+        let spawnRate = Math.max(0.4, 1.2 - (currentArea * 0.08));
+        if (skillSpawnTimer > spawnRate) { spawnRandomSkill(); skillSpawnTimer = 0; }
+    }
+
+    // Enemies
+    for (let eIndex = enemies.length -1; eIndex >= 0; eIndex--) {
+        let e = enemies[eIndex];
+        if (!isTimeFrozen) {
+            if (e.isBoss) {
+                e.x += e.speedX;
+                e.x = Math.max(0, Math.min(canvas.width - e.width, e.x));
+                if (e.x <= 0 || e.x >= canvas.width - e.width) e.speedX *= -1;
+                e.shootTimer += dt;
+                e.patternTimer += dt;
+                e.minionSpawnTimer += dt;
+                // Boss special abilities
+                e.specialTimer += dt;
+                let specialCooldown = Math.max(3, 6 - currentArea * 0.3);
+                if (e.specialTimer > specialCooldown) {
+                    e.specialTimer = 0;
+                    bossSpecialAbility(e);
+                }
+                let minionInterval = Math.max(2, 4 - currentArea * 0.2);
+                if (e.minionSpawnTimer > minionInterval) {
+                    e.minionSpawnTimer = 0;
+                    let count = Math.floor(Math.random() * 4) + 6;
+                    for (let m = 0; m < count; m++) {
+                        let mType = Math.floor(Math.random() * 4) + 1;
+                        let mStats = getEnemyStats(currentArea, mType);
+                        enemies.push({
+                            x: e.x + Math.random() * e.width,
+                            y: e.y + e.height,
+                            width: 28 + mType * 2, height: 28 + mType * 2,
+                            hp: Math.ceil(mStats.hp * 0.4),
+                            maxHp: Math.ceil(mStats.hp * 0.4),
+                            speed: mStats.speed * 1.2,
+                            type: mType, isBoss: false,
+                            shootTimer: Math.random() * 1.5,
+                            imgKey: 'enemy' + mType + '-area' + Math.min(currentArea, AREA_COUNT),
+                            poisoned: 0,
+                            isMinion: true
+                        });
+                    }
+                    addFloatingText(e.x + e.width/2, e.y + e.height + 20, 'MINIONS SPAWNED!', '#ff8800', 18);
+                }
+                let shootInterval = Math.max(0.4, 1.2 - (currentArea * 0.1));
+                if (e.shootTimer > shootInterval) {
+                    if (e.patternTimer < 5) {
+                        for (let a = -2; a <= 2; a++) {
+                            let angle = Math.PI / 2 + a * 0.25;
+                            enemyBullets.push({
+                                x: e.x + e.width/2 - 4, y: e.y + e.height,
+                                width: 10, height: 10,
+                                speed: 4 + currentArea * 0.3,
+                                vx: Math.cos(angle) * (4 + currentArea * 0.3),
+                                vy: Math.sin(angle) * (4 + currentArea * 0.3)
+                            });   
+                        }
+                    } else if (e.patternTimer < 10) {
+                        let angle = Math.atan2((player.y + player.height/2) - (e.y + e.height/2),
+                                               (player.x + player.width/2) - (e.x + e.width/2));
+                        enemyBullets.push({
+                            x: e.x + e.width/2 - 5, y: e.y + e.height,
+                            width: 12, height: 12,
+                            speed: 5 + currentArea * 0.4,
+                            vx: Math.cos(angle) * (5 + currentArea * 0.4),
+                            vy: Math.sin(angle) * (5 + currentArea * 0.4)
+                        });
+                } else e.patternTimer = 0;
+                e.shootTimer = 0;
+
+            }
+        } else {
+            e.y += e.speed;
+            if ((currentArea >= 3 && e.type >= 3) || e.isMinion) {
+                e.shootTimer += dt;
+                let shootRate = e.isMinion ? 2.5 : 3;
+                if (e.shootTimer > shootRate) {
+                    enemyBullets.push({ x: e.x + e.width/2 - 4, y: e.y + e.height, width: 8, height: 8, speed: 3.5 + (e.isMinion ? 0.5 : 0) });
+                    e.shootTimer = 0;
+                }
+            }
+            if (e.y > canvas.height + 60) { enemies.splice(eIndex, 1); continue; }
+        }
+    }
+
+    // Bullet collisions
+    if (!lightningTargeting) {
+        for (let bIndex = bullets.length - 1; bIndex >= 0; bIndex--) {
+            let b = bullets[bIndex];
+            if (b.x < e.x + e.width && b.x + b.width > e.x &&
+                b.y < e.y + e.height && b.y + b.height > e.y) {
+                e.hp -= b.damage;
+                createParticles(b.x, b.y, '#ffff00', 3);
+                playSFX('sound-hit', 0.08);
+
+                if (player.activeSkills.hlaser) {
+                    enemies.forEach(other => { if (other !== e && Math.abs(other.y - e.y) < 40) other.hp -= 3; });
+                    playSFX('sound-horizontallaser', 0.15);
+                    createParticles(e.x, e.y, '#00ffff', 10);
+                }
+                if (b.isBomb) {
+                    enemies.forEach(other => {
+                        let dist= Math.hypot((other.x + other.width/2) - b.x, (other.y + other.height/2) - b.y);
+                        if (dist < 130) other.hp -= 5;
+                    });
+                    triggerExplosionEffect(b.x, b.y);
+                    screenShake = 3;
+                }
+                if (!b.isDrone && !b.isHoming && !b.isReflected) bullets.splice(bIndex, 1);
+                else if (b.isHoming || b.isDrone || b.isReflected) bullets.splice(bIndex, 1);
+                }
+            }
+        }
+
+        // Enemy death
+        if (e.hp <= 0) {
+            let pts = e.isBoss ? 500 + currentArea * 200 : (10 + e.type * 5 + currentArea * 3);
+            addScore(pts, e.x + e.width/2, e.y + e.height/2);
+            createParticles(e.x + e.width/2, e.y + e.height/2, areaData.accent, 20);
+            if (e.isBoss) {
+                createParticles(e.x + e.width/2, e.y + e.height/2, '#ff0055', 40);
+                screenShake = 8;
+                revives += 2;
+                activePortal = { x: canvas.width/2 - 40, y: 150, width: 80, height: 80 };
+                playSFX('sound-portal', 0.5);
+                addFloatingText(canvas.width/2, canvas.height/2, 'PORTAL OPENED!', '#00f0ff', 32);
+            } else {
+                totalKills++;
+                enemiesKilledInStage++;
+                if (enemiesKilledInStage >= ENEMIES_PER_STAGE && currentStage % 5 !== 0) {
+                    currentStage++;
+                    enemiesKilledInStage = 0;
+                    addFloatingText(canvas.width/2, 100, 'STAGE ' + currentStage, '#00ff88', 24);
+                }
+            }
+            enemies.splice(eIndex, 1);
+            continue;
+        }
+
+        // Player collision
+        let shielded = player.activeSkills.shield || player.activeSkills.reflect;
+        if (!godMode && !player.activeSkills.ghost && !shielded && !lightningTargeting && player.invincibleTimer <= 0) {
+            if (player.x < e.x + e.width && player.x + player.width > e.x &&
+                player.y < e.y + e.height && player.y + player.height > e.y) {
+                    enemies.splice(eIndex, 1);
+                    damagePlayer(1);
+                }
+            }
+        }
+
+        // Skill pickups - SAFE collision handling
+        for (let i = skillPickups.length - 1; i >= 0; i--) {
+            let sp = skillPickups[i];
+            if (!isTimeFrozen) {
+                if (player.activeSkills.magnet) {
+                    let dx = (player.x + player.width/2) - (sp.x + sp.width/2);
+                    let dy = (player.y + player.height/2) - (sp.y + sp.height/2);
+                    let dist = Math.hypot(dx, dy);
+                    if (dist < 250) { sp.x += dx * 0.04; sp.y += dy * 0.04; }
+                    else sp.y += sp.speed;
+                } else sp.y += sp.speed;
+            }
+            if (sp.y > canvas.height + 50) { skillPickups.splice(i, 1); continue; }
+
+            if (!lightningTargeting && player.x < sp.x + sp.width && player.x + player.width > sp.x &&
+                player.y < sp.y + sp.height && player.y + player.height > sp.y) {
+
+                let data = SKILL_DATA[sp.key];
+                if (!data) { skillPickups.splice(i, 1); continue; }
+
+                if (sp.key === 'health') {
+                    player.hp = Math.min(player.maxHp, player.hp + 1);
+                    playSFX('sound-health', 0.3);
+                    addFloatingText(player.x + 22, player.y - 15, '+HP', '#ff0055', 18);
+                } else if (sp.key === 'phoenix') {
+                    revives++;
+                    playSFX('sound-powerup', 0.3);
+                    addFloatingText(player.x + 22, player.y - 15, '+REVIVE', '#ff8800', 18);
+                } else if (data.isAbility) {
+                    player.activeAbilities[data.isAbility] = sp.key;
+                    playSFX('sound-powerup', 0.4);
+                    addFloatingText(player.x + 22, player.y - 15, '[' + data.isAbility + '] ' + data.name, '#ffff00', 16);
+                } else if (typeof data.duration === 'number') {
+                    player.activeSkills[sp.key] = data.duration;
+                    let sfxName = 'sound-' + sp.key;
+                    playSFX(sounds[sfxName] ? sfxName : 'sound-powerup', 0.3);
+                    addFloatingText(player.x + 22, player.y - 15, data.name, '#00f0ff', 16);
+                }
+                createParticles(sp.x + sp.width/2, sp.y + sp.height/2, '#ffff00', 15);
+                skillPickups.splice(i, 1);
+                }
+        }
