@@ -1304,4 +1304,303 @@ function draw() {
         ctx.fillText('PORTAL', activePortal.x + 40, activePortal.y + 44);
         ctx.restore();
     }
-}
+
+    // Skill pickups with emoji icons
+    skillPickups.forEach(sp => {
+        ctx.save();
+        let bounce = Math.sin(gameTime * 5) * 3;
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.85)';
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(sp.x + sp.width/2, sp.y + sp.height/2 + bounce, sp.width/2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(sp.icon || '\u2B50', sp.x + sp.width/2, sp.y + sp.height/2 + bounce);
+        ctx.restore();
+    });
+
+    // Fire chamber
+    if (player.activeSkills.firechamber) {
+        ctx.save();
+        ctx.strokeStyle = '#ff4500';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#ffaa00';
+        ctx.shadowBlur = 25;
+        let pulse = 1 + Math.sin(gameTime * 8) * 0.1;
+        ctx.beginPath();
+        ctx.arc(player.x + player.width/2, player.y + player.height/2, 170 * pulse, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+    }
+    // Plasma barrier
+    if (player.activeSkills.plasmabarrier) {
+        ctx.save();
+        ctx.strokeStyle = '#d900ff';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#d900ff';
+        ctx.shadowBlur = 18;
+        let pulse = 1 + Math.sin(gameTime * 6) * 0.08;
+        ctx.beginPath();
+        ctx.arc(player.x + player.width/2, player.y + player.height/2, 120 * pulse, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+    }
+    // Poison aura
+    if (player.activeSkills.poison) {
+        ctx.save();
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#00ff00';
+        ctx.shadowBlur = 15;
+        let pulse = 1 + Math.sin(gameTime * 5) * 0.1;
+        ctx.beginPath();
+        ctx.arc(player.x + player.width/2, player.y + player.height/2, 140 * pulse, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+    }
+    // Magnet range
+    if (player.activeSkills.magnet) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(player.x + player.width/2, player.y + player.height/2, 250, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Player
+    let alpha = 1.0;
+    if (player.activeSkills.ghost) alpha = 0.35;
+    if (player.invincibleTimer > 0 && Math.floor(gameTime * 10) % 2 === 0) alpha = 0.4;
+    const playerImgKey = 'player' + Math.min(currentArea, AREA_COUNT);
+    if (images[playerImgKey] && images[playerImgKey].complete && images[playerImgKey].naturalWidth !== 0) {
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(images[playerImgKey], player.x, player.y, player.width, player.height);
+        ctx.globalAlpha = 1.0;
+    } else {
+        drawPlayerShip(player.x, player.y, player.width, player.height, areaData.accent, alpha);
+    }
+
+    // Shield
+    if (player.activeSkills.shield || player.activeSkills.reflect) {
+        ctx.save();
+        ctx.strokeStyle = player.activeSkills.reflect ? '#ff00ff' : '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 10;
+        let pulse = 1 + Math.sin(gameTime * 4) * 0.05;
+        ctx.beginPath();
+        ctx.arc(player.x + player.width/2, player.y + player.height/2, 38 * pulse, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+    }
+    // Berserk glow
+    if (player.activeSkills.berserk) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.15)';
+        ctx.beginPath();
+        ctx.arc(player.x + player.width/2, player.y + player.height/2, 50, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Bullets
+    bullets.forEach(b => {
+        ctx.save();
+        if (b.isBomb) { ctx.fillStyle = '#ff4500'; ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 10; }
+        else if (b.isHoming) { ctx.fillStyle = '#ff00ff'; ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 8; }
+        else if (b.isMissile) { ctx.fillStyle = '#ff6600'; ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 10; }
+        else if (b.isDrone) { ctx.fillStyle = '#00ff88'; ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 6; }
+        else { ctx.fillStyle = '#ffff00'; ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 6; }
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+        ctx.restore();
+    });
+
+    // Enemy bullets
+    enemyBullets.forEach(eb => {
+        ctx.save();
+        ctx.fillStyle = '#ff0055';
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(eb.x + eb.width/2, eb.y + eb.height/2, eb.width/2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    });
+
+    // Enemies
+    enemies.forEach(e => {
+        const eImg = images[e.imgKey];
+        if (eImg && eImg.complete && eImg.naturalWidth !== 0) {
+            ctx.drawImage(eImg, e.x, e.y, e.width, e.height);
+        } else {
+            if (e.isBoss) drawBossShip(e.x, e.y, e.width, e.height, areaData.bossColor);
+            else drawEnemyShip(e.x, e.y, e.width, e.height, e.type, areaData.enemyColors[e.type - 1] || '#ffa500');
+        }
+        if (e.poisoned > 0) {
+            ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 1.5;
+            ctx.strokeRect(e.x - 2, e.y - 2, e.width + 4, e.height + 4);
+        }
+        if (lightningDebuffTimer > 0) {
+            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 1.5;
+            ctx.strokeRect(e.x - 2, e.y - 2, e.width + 4, e.height + 4);
+        }
+        if (e.isBoss || e.maxHp > 2) {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(e.x, e.y - 8, e.width, 4);
+            ctx.fillStyle = e.isBoss ? '#ff0055' : '#00f0ff';
+            ctx.fillRect(e.x, e.y - 8, Math.max(0, (e.hp / e.maxHp) * e.width), 4);
+        }
+    });
+
+    // Particles
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size || 2, p.size || 2);
+    });
+
+    // Visual effects
+    visualEffects.forEach(ve => {
+        if (ve.type === 'lightning') {
+            ctx.save();
+            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4;
+            ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ve.branches.forEach((pt, idx) => { if (idx === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+            });
+            ctx.stroke();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.restore();
+        } else if (ve.type === 'explosion_ring') {
+            let progress = (0.4 - ve.life) / 0.4;
+            let currentR = ve.radius + (ve.maxRadius - ve.radius) * progress;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 69, 0, ' + (1 - progress) + ')';
+            ctx.lineWidth = 7;
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        } else if (ve.type === 'shockwave') {
+            let progress = (0.8 - ve.life) / 0.8;
+            let currentR = ve.radius + (ve.maxRadius - ve.radius) * progress;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 240, 255, ' + (1 - progress) + ')';
+            ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        } else if (ve.type === 'blackhole') {
+            let progress = (0.8 - ve.life) / 0.8;
+            let currentR = ve.radius + (ve.maxRadius - ve.radius) * progress;
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, ' + (0.3 + progress * 0.4) + ')';
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(170, 0, 255, ' + (1 - progress) + ')';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR * 0.8, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        } else if (ve.type === 'timefreeze') {
+            let progress = (1.0 - ve.life) / 1.0;
+            let currentR = ve.radius + (ve.maxRadius - ve.radius) * progress;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 240, 255, ' + (0.5 * (1 - progress)) + ')';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        } else if (ve.type === 'laserbeam') {
+            ctx.save();
+            let alpha = ve.life / 0.05;
+            ctx.fillStyle = 'rgba(0, 240, 255, ' + (0.6 * alpha) + ')';
+            ctx.shadowColor = '#00f0ff';
+            ctx.shadowBlur = 20;
+            ctx.fillRect(ve.x - ve.width/2, ve.y, ve.width, ve.height);
+            ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.9 * alpha) + ')';
+            ctx.fillRect(ve.x - 2, ve.y, 4, ve.height);
+            ctx.restore();
+        } else if (ve.type === 'fireball_warning') {
+            ctx.save();
+            let pulse = 1 + Math.sin(gameTime * 15) * 0.2;
+            let alpha = ve.life / 1.5;
+            ctx.strokeStyle = 'rgba(255, 0, 0, ' + alpha + ')';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(ve.x, ve.y, ve.radius * pulse, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 0, 0, ' + (0.15 * alpha) + ')';
+            ctx.fill();
+            // Crosshair
+            ctx.strokeStyle = 'rgba(255, 0, 0, ' + (0.7 * alpha) + ')';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(ve.x - 20, ve.y); ctx.lineTo(ve.x + 20, ve.y);
+            ctx.moveTo(ve.x, ve.y - 20); ctx.lineTo(ve.x, ve.y + 20);
+            ctx.stroke();
+            ctx.restore();
+        } else if (ve.type === 'fireball_explosion') {
+            let progress = (0.5 - ve.life) / 0.5;
+            let currentR = ve.radius + (ve.maxRadius - ve.radius) * progress;
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 69, 0, ' + (0.4 * (1 - progress)) + ')';
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 200, 0, ' + (1 - progress) + ')';
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.8 * (1 - progress)) + ')';
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR * 0.3, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        } else if (ve.type === 'boss_fire_ring') {
+            ctx.save();
+            let alpha = ve.life / 2.0;
+            ctx.strokeStyle = 'rgba(255, 69, 0, ' + alpha + ')';
+            ctx.lineWidth = 5;
+            ctx.shadowColor = '#ff4500';
+            ctx.shadowBlur = 20;
+            let pulse = 1 + Math.sin(gameTime * 10) * 0.1;
+            ctx.beginPath();
+            ctx.arc(ve.x, ve.y, ve.radius * pulse, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 69, 0, ' + (0.1 * alpha) + ')';
+            ctx.fill();
+            ctx.restore();
+        } else if (ve.type === 'teleport') {
+            let progress = (0.5 - ve.life) / 0.5;
+            let currentR = ve.radius + (ve.maxRadius - ve.radius) * progress;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(136, 0, 255, ' + (1 - progress) + ')';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(ve.x, ve.y, currentR, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        } else if (ve.type === 'rage') {
+            ctx.save();
+            let alpha = ve.life / 3.0;
+            ctx.strokeStyle = 'rgba(255, 0, 0, ' + alpha + ')';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 15;
+            let pulse = 1 + Math.sin(gameTime * 12) * 0.15;
+            ctx.beginPath();
+            ctx.arc(ve.x, ve.y, ve.radius * pulse, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    });
+
+    // Floating texts
+    floatingTexts.forEach(ft => {
+        ctx.save();
+        ctx.font = 'bold ' + ft.size + 'px sans-serif';
+        ctx.fillStyle = ft.color;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = ft.color;
+        ctx.shadowBlur = 8;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+    });
