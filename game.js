@@ -208,9 +208,9 @@ if (gameState === 'PLAYING') {
         'lightning':     { area: 1, duration: 0, isAbility: 'E', weight: 1.0, icon: '\u26A1', name: 'Lightning' },
         'missile':       { area: 4, duration: 0, isAbility: 'E', weight: 0.8, icon: '\uD83D\uDE80', name: 'Mega Missile' },
         'nuke':          { area: 1, duration: 0, isAbility: 'R', weight: 0.6, icon: '\u2622\uFE0F', name: 'Nuke' },
-        'timefreeze':    { area: 5, duration: 0, isAbility: 'R', weight: 0.5, icon: '\u23F1\uFE0f', name: 'Chronostasis' },
-
+        'timefreeze':    { area: 5, duration: 0, isAbility: 'R', weight: 0.5, icon: '\u23F1\uFE0F', name: 'Chronostasis' }
     };
+
     function getAvailableSkills() {
         let pool = [];
         for (let key in SKILL_DATA) {
@@ -1118,7 +1118,7 @@ function generateLightningBranches(targetX, targetY) {
     points.push({ x: targetX, y: targetY });
     return points;
 }
-function triggerExplosionEffects(x, y) {
+function triggerExplosionEffect(x, y) {
     playSFX('sound-bomb', 0.3);
     visualEffects.push({ type: 'explosion_ring', x, y, radius: 5, maxRadius: 120, life: 0.4 });
     createParticles(x, y, '#ff4500', 35);
@@ -1145,7 +1145,7 @@ function drawPlayerShip(x, y, w, h, color, alpha) {
     ctx.lineTo(cx, y + h * 0.55);
     ctx.lineTo(x, y + h * 0.75);
     ctx.closePath();
-    ctx.fill()
+    ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.shadowBlur = 10;
     ctx.beginPath();
@@ -1297,7 +1297,7 @@ function draw() {
         ctx.arc(activePortal.x + 40, activePortal.y + 40, 35 * pulse, 0, Math.PI * 2);
         ctx.stroke();
         ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
-        ctx.fill()
+        ctx.fill();
         ctx.font = 'bold 14px sans-serif';
         ctx.fillStyle = '#00f0ff';
         ctx.textAlign = 'center';
@@ -1604,3 +1604,90 @@ function draw() {
         ctx.fillText(ft.text, ft.x, ft.y);
         ctx.restore();
     });
+
+    // Lightning targeting
+    if (lightningTargeting) {
+        ctx.fillStyle = 'rgba(0, 10, 30, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 160, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(mousePos.x - 25, mousePos.y); ctx.lineTo(mousePos.x + 25, mousePos.y);
+        ctx.moveTo(mousePos.x, mousePos.y - 25); ctx.lineTo(mousePos.x, mousePos.y + 25);
+        ctx.stroke();
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillStyle = '#00ffff'; ctx.textAlign = 'center';
+        ctx.fillText('TIME FROZEN - CLICK TO STRIKE (ESC to cancel)', canvas.width / 2, 50);
+    }
+
+    ctx.restore();
+}
+
+function updateHUD() {
+    const ad = AREA_DATA[Math.min(currentArea, AREA_COUNT)];
+    document.getElementById('hud-left').innerText = ad.name + ' | STAGE ' + currentStage + ' | HP: ' + Math.max(0, Math.ceil(player.hp)) + '/' + player.maxHp;
+    document.getElementById('hud-center').innerText = 'SCORE: ' + score + ' | COMBO: x' + combo;
+    let activeList = [];
+    for (let s in player.activeSkills) {
+        if (SKILL_DATA[s]) activeList.push(SKILL_DATA[s].icon);
+    }
+    if (player.activeAbilities.Q && SKILL_DATA[player.activeAbilities.Q]) activeList.push('[Q:' + SKILL_DATA[player.activeAbilities.Q].icon + ']');
+    if (player.activeAbilities.E && SKILL_DATA[player.activeAbilities.E]) activeList.push('[E:' + SKILL_DATA[player.activeAbilities.E].icon + ']');
+    if (player.activeAbilities.R && SKILL_DATA[player.activeAbilities.R]) activeList.push('[R:' + SKILL_DATA[player.activeAbilities.R].icon + ']');
+    document.getElementById('hud-right').innerText = activeList.join(' ') || 'NO ACTIVE SKILLS';
+
+    const progressBar = document.getElementById('stage-bar');
+    if (currentStage % 5 === 0) {
+        progressBar.style.width = '100%';
+        progressBar.style.background = 'linear-gradient(90deg, #ff0055, #ff8800)';
+    } else {
+        progressBar.style.width = Math.min(100, (enemiesKilledInStage / ENEMIES_PER_STAGE) * 100) + '%';
+        progressBar.style.background = 'linear-gradient(90deg, #00f0ff, #00ff88)';
+    }
+    document.getElementById('hud-time').innerText = 'TIME: ' + formatTime(gameTime);
+    document.getElementById('hud-revives').innerText = 'REVIVES: x' + revives;
+}
+
+let lastTime = performance.now();
+function gameLoop(now) {
+    let dt = (now - lastTime) / 1000;
+    if (dt > 0.1) dt = 0.1;
+    lastTime = now;
+    if (gameState === 'PLAYING') update(dt);
+    draw();
+    if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+}
+
+function toggleStars() {
+    starsEnabled = !starsEnabled;
+    document.getElementById('btn-stars').innerText = starsEnabled ? 'ON' : 'OFF';
+}
+function toggleMusic() {
+    musicEnabled = !musicEnabled;
+    const btn = document.getElementById('btn-music');
+    if (btn) btn.innerText = musicEnabled ? 'ON' : 'OFF';
+    if (!musicEnabled) stopMusic();
+    else playMusic(currentArea);
+}
+function toggleGodMode() {
+    if (!godMode) showModal('ENABLE GOD MODE?');
+    else { godMode = false; document.getElementById('btn-god').innerText = 'OFF'; }
+}
+function toggleDevMode() {
+    devMode = !devMode;
+    document.getElementById('btn-dev').innerText = devMode ? 'ON' : 'OFF';
+    if (devMode && gameState === 'PLAYING') {
+        addFloatingText(canvas.width/2, canvas.height/2, 'DEV MODE ON', '#00ff88', 20);
+    }
+}
+function showModal(text) {
+    document.getElementById('modal-text').innerText = text;
+    document.getElementById('modal').style.display = 'flex';
+}
+function confirmModal(result) {
+    document.getElementById('modal').style.display = 'none';
+    if (result) { godMode = true; document.getElementById('btn-god').innerText = 'ON'; }
+}
