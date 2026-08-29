@@ -1,5 +1,5 @@
 // ===============================================================
-//      GALACTIC SURVIVOR - Complete Edition
+//      GALACTIC SURVIVOR - Fixed Timestep Edition
 // ===============================================================
 
 const canvas = document.getElementById('gameCanvas');
@@ -1649,12 +1649,20 @@ function updateHUD() {
     document.getElementById('hud-revives').innerText = 'REVIVES: x' + revives;
 }
 
+// Fixed timestep at 240Hz so the game feels the same on every monitor
 let lastTime = performance.now();
+let accumulator = 0;
+const FIXED_STEP = 1 / 240;
+
 function gameLoop(now) {
     let dt = (now - lastTime) / 1000;
     if (dt > 0.1) dt = 0.1;
     lastTime = now;
-    if (gameState === 'PLAYING') update(dt);
+    accumulator += dt;
+    while (accumulator >= FIXED_STEP) {
+         if (gameState === 'PLAYING') update(FIXED_STEP);
+         accumulator -= FIXED_STEP;
+    }
     draw();
     if (gameState === 'PLAYING' || gameState === 'PAUSED') {
         animationFrameId = requestAnimationFrame(gameLoop);
